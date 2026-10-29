@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bio-Inspired Wind Turbine Aerodynamics Simulation</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            800: '#166534',
+                            900: '#14532d',
+                            950: '#052e16',
+                        },
+                        slate: {
+                            850: '#111827',
+                            900: '#0f172a',
+                            950: '#020617'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+        .glow-green {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- TOP HEADER BAR -->
+    <header class="glass-panel sticky top-0 z-40 border-b border-slate-800 px-4 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-slate-950 shadow-lg glow-green font-bold text-xl">
+                <i class="fa-solid fa-wind"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight tracking-wide text-white flex items-center gap-2">
+                    AERO-BIO SIMULATION <span class="text-[11px] bg-brand-500/20 text-brand-400 border border-brand-500/30 px-2 py-0.5 rounded-full font-medium">3D Interactive</span>
+                </h1>
+                <p class="text-xs text-slate-400">Bio-Inspired Wind Turbine Aerodynamics & Flow Control</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button onclick="toggleInfoDrawer()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-200 rounded-xl border border-slate-700/80 transition flex items-center gap-2">
+                <i class="fa-solid fa-book-open text-brand-400"></i>
+                <span>Educational Deep Dive</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto flex flex-col gap-6">
+
+        <!-- TELEMETRY METRIC CARDS -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Noise Level -->
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400">
+                    <span class="uppercase tracking-wider font-medium">Acoustic Noise</span>
+                    <i class="fa-solid fa-volume-high text-brand-400"></i>
+                </div>
+                <div class="my-2">
+                    <span id="metric-db" class="text-2xl lg:text-3xl font-bold text-brand-400">68.5 dB</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div id="meter-db-bar" class="bg-brand-500 h-full rounded-full transition-all duration-300" style="width: 65%;"></div>
+                </div>
+                <span id="metric-db-status" class="text-[11px] text-emerald-400 mt-2 block font-medium">Baseline Noise Level</span>
+            </div>
+
+            <!-- Lift-to-Drag Ratio -->
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400">
+                    <span class="uppercase tracking-wider font-medium">Lift / Drag ($C_L / C_D$)</span>
+                    <i class="fa-solid fa-plane-departure text-cyan-400"></i>
+                </div>
+                <div class="my-2">
+                    <span id="metric-ld" class="text-2xl lg:text-3xl font-bold text-cyan-400">42.1</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div id="meter-ld-bar" class="bg-cyan-400 h-full rounded-full transition-all duration-300" style="width: 70%;"></div>
+                </div>
+                <span id="metric-ld-status" class="text-[11px] text-slate-400 mt-2 block font-medium">Moderate Stall Risk</span>
+            </div>
+
+            <!-- Aerodynamic Efficiency -->
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400">
+                    <span class="uppercase tracking-wider font-medium">Aero Efficiency</span>
+                    <i class="fa-solid fa-gauge-high text-amber-400"></i>
+                </div>
+                <div class="my-2">
+                    <span id="metric-eff" class="text-2xl lg:text-3xl font-bold text-amber-400">84.2%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div id="meter-eff-bar" class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: 84%;"></div>
+                </div>
+                <span id="metric-eff-status" class="text-[11px] text-amber-300 mt-2 block font-medium">Betz Limit Peak: 59.3%</span>
+            </div>
+
+            <!-- RPM & Power -->
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400">
+                    <span class="uppercase tracking-wider font-medium">Power & Rotation</span>
+                    <i class="fa-solid fa-bolt text-indigo-400"></i>
+                </div>
+                <div class="my-2">
+                    <span id="metric-power" class="text-2xl lg:text-3xl font-bold text-indigo-400">1,420 kW</span>
+                </div>
+                <div class="text-xs text-slate-400 flex justify-between items-center">
+                    <span>Rotational Velocity:</span>
+                    <span id="metric-rpm" class="font-bold text-slate-200">22.8 RPM</span>
+                </div>
+                <span id="metric-power-status" class="text-[11px] text-indigo-300 mt-1 block font-medium">Grid Generation Active</span>
+            </div>
+        </div>
+
+        <!-- MAIN 3D DISPLAY AND CONTROLS GRID -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- 3D VIEWPORT CONTAINER -->
+            <div class="lg:col-span-2 glass-panel rounded-2xl p-4 flex flex-col relative overflow-hidden min-h-[460px] lg:min-h-[520px]">
+                <!-- Top Status Badges -->
+                <div class="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2">
+                    <span id="badge-blade-mode" class="px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/40 glow-green">
+                        Standard Smooth Blade
+                    </span>
+                    <span id="badge-flow-mode" class="px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                        Streamlines Active
+                    </span>
+                    <span id="badge-heatmap-mode" class="hidden px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                        Pressure Heatmap
+                    </span>
+                </div>
+
+                <!-- Interactive Hint -->
+                <div class="absolute top-4 right-4 z-10 text-[11px] text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800 flex items-center gap-1.5">
+                    <i class="fa-solid fa-hand-pointer text-brand-400"></i> Drag to rotate camera
+                </div>
+
+                <!-- THREE.JS CANVAS CONTAINER -->
+                <div id="three-container" class="w-full h-full flex-1 rounded-xl cursor-grab active:cursor-grabbing"></div>
+
+                <!-- Bottom Viewport Legend Overlay -->
+                <div class="absolute bottom-4 left-4 right-4 z-10 glass-panel p-3 rounded-xl border border-slate-700/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span>
+                            <span class="text-slate-300">Laminar Particles</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span>
+                            <span class="text-slate-300">Turbulent Vortices</span>
+                        </div>
+                    </div>
+                    <div class="text-slate-400 text-[11px]">
+                        Aerodynamic Pitch Angle: <span id="pitch-angle-display" class="font-bold text-white">6.0°</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTROLS & ARCHITECTURE PANEL -->
+            <div class="flex flex-col gap-5">
+                
+                <!-- BLADE MODE SELECTION -->
+                <div class="glass-panel p-5 rounded-2xl flex flex-col gap-3.5">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800 pb-2.5">
+                        <i class="fa-solid fa-cubes text-brand-400"></i> Blade Geometry Mode
+                    </h3>
+
+                    <div class="grid grid-cols-1 gap-2.5">
+                        <!-- Standard Smooth Blade -->
+                        <button onclick="switchBladeMode('smooth')" id="btn-mode-smooth" class="blade-mode-btn p-3 rounded-xl border text-left flex items-start gap-3 transition-all duration-200 border-brand-500 bg-brand-500/10 text-white">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
+                                <i class="fa-solid fa-minus"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-xs font-bold uppercase tracking-wider">Standard Smooth Blade</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Baseline design. Smooth leading/trailing edges create trailing turbulent noise at high speeds.</div>
+                            </div>
+                        </button>
+
+                        <!-- Owl Serrated Blade -->
+                        <button onclick="switchBladeMode('serrated')" id="btn-mode-serrated" class="blade-mode-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/50 text-left flex items-start gap-3 transition-all duration-200 text-slate-300">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-brand-400 shrink-0 mt-0.5">
+                                <i class="fa-solid fa-feather"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                                    Owl Feather Serrations <span class="text-[10px] bg-brand-500/20 text-brand-300 px-1.5 py-0.5 rounded-full font-normal">Acoustic Dampening</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Comb-like serrations on trailing edge scatter vortex structures, significantly reducing noise.</div>
+                            </div>
+                        </button>
+
+                        <!-- Whale Tubercle Blade -->
+                        <button onclick="switchBladeMode('tubercle')" id="btn-mode-tubercle" class="blade-mode-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/50 text-left flex items-start gap-3 transition-all duration-200 text-slate-300">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5">
+                                <i class="fa-solid fa-water"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                                    Whale Tubercles <span class="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded-full font-normal">Stall Control</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Rounded bumps on leading edge generate chordwise vortices, preventing abrupt aerodynamic stall.</div>
+                            </div>
+                        </button>
+
+                        <!-- Maple Seed Rotor -->
+                        <button onclick="switchBladeMode('maple')" id="btn-mode-maple" class="blade-mode-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/50 text-left flex items-start gap-3 transition-all duration-200 text-slate-300">
+                            <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                                <i class="fa-solid fa-seedling"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                                    Maple Seed Rotor <span class="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full font-normal">Autorotation</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Asymmetric single-blade autorotation rotor demonstrating vortex-assisted descent lift.</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LIVE WIND TUNNEL SLIDERS & VISUAL SWITCHES -->
+                <div class="glass-panel p-5 rounded-2xl flex flex-col gap-4">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800 pb-2.5">
+                        <i class="fa-solid fa-sliders text-brand-400"></i> Wind Tunnel Parameters
+                    </h3>
+
+                    <!-- Wind Velocity Slider -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Wind Velocity ($V_\infty$)</span>
+                            <span id="slider-wind-val" class="text-brand-400 font-bold">12.0 m/s</span>
+                        </div>
+                        <input type="range" id="slider-wind" min="2" max="28" value="12" step="0.5" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-500" oninput="updateSimParameters()">
+                    </div>
+
+                    <!-- Blade Pitch Angle Slider -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Blade Pitch Angle ($\alpha$)</span>
+                            <span id="slider-pitch-val" class="text-cyan-400 font-bold">6.0°</span>
+                        </div>
+                        <input type="range" id="slider-pitch" min="-2" max="25" value="6" step="0.5" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500" oninput="updateSimParameters()">
+                    </div>
+
+                    <!-- Visual Toggles -->
+                    <div class="border-t border-slate-800 pt-3 flex flex-col gap-2.5">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-wind text-cyan-400"></i> Airflow Streamlines
+                            </span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-streamlines" class="sr-only peer" checked onchange="updateSimParameters()">
+                                <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-fire-halo text-rose-400"></i> Pressure Heatmap Overlay
+                            </span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-heatmap" class="sr-only peer" onchange="updateSimParameters()">
+                                <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- EDUCATIONAL INFORMATION DRAWER / MODAL -->
+        <section id="info-drawer" class="hidden glass-panel rounded-2xl p-6 border border-slate-700/80 flex flex-col gap-6">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-400 text-lg">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Aerodynamic Bio-Inspiration Deep Dive</h2>
+                        <p class="text-xs text-slate-400">Biological flight and swimming mechanisms applied to modern wind engineering</p>
+                    </div>
+                </div>
+                <button onclick="toggleInfoDrawer()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-slate-300">
+                
+                <!-- Owl Feather Breakdown -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 flex flex-col gap-2.5">
+                    <div class="flex items-center gap-2 text-brand-400 font-bold text-sm">
+                        <i class="fa-solid fa-feather"></i>
+                        <span>Owl Feathers: Serrated Noise Control</span>
+                    </div>
+                    <p class="text-slate-400 leading-relaxed">
+                        Owls possess specialized comb-like serrations along the leading and trailing edges of their primary feathers. In standard smooth wind turbine blades, turbulent air shedding at the trailing edge generates significant aerodynamic noise.
+                    </p>
+                    <p class="text-slate-400 leading-relaxed">
+                        Serrated trailing edges break large coherent turbulent vortex sheets into smaller micro-vortices, shifting acoustic frequencies and reducing noise output by up to 8–10 dB.
+                    </p>
+                </div>
+
+                <!-- Whale Tubercle Breakdown -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 flex flex-col gap-2.5">
+                    <div class="flex items-center gap-2 text-cyan-400 font-bold text-sm">
+                        <i class="fa-solid fa-water"></i>
+                        <span>Humpback Whales: Leading-Edge Tubercles</span>
+                    </div>
+                    <p class="text-slate-400 leading-relaxed">
+                        Humpback whales feature rounded bumps called <em>tubercles</em> on the leading edge of their flippers. These bumps act as passive flow control devices that alter the boundary layer.
+                    </p>
+                    <p class="text-slate-400 leading-relaxed">
+                        Tubercles channel airflow into high-velocity troughs, generating counter-rotating vortices. This maintains lift and delays catastrophic boundary layer stall at high angles of pitch ($\alpha$).
+                    </p>
+                </div>
+
+                <!-- Maple Seed Breakdown -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-800 flex flex-col gap-2.5">
+                    <div class="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                        <i class="fa-solid fa-seedling"></i>
+                        <span>Maple Seeds: Autorotation Dynamics</span>
+                    </div>
+                    <p class="text-slate-400 leading-relaxed">
+                        Maple seeds (*samaras*) autorotate as they fall, acting like single-bladed helicopters. This rotation produces a stable leading-edge vortex (LEV) above the wing surface.
+                    </p>
+                    <p class="text-slate-400 leading-relaxed">
+                        The LEV creates an ultra-low pressure zone that provides continuous lift relative to weight. Engineers apply this principle to lightweight rotors and micro-aerial vehicles.
+                    </p>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-800/80 glass-panel py-4 px-6 text-center text-xs text-slate-500 mt-auto">
+        <p>Bio-Inspired Wind Turbine Aerodynamics Simulation &bull; Single-File WebGL App</p>
+    </footer>
+
+    <!-- INTERACTIVE SCRIPT LOGIC -->
+    <script>
+        // --- GLOBALS & STATE ---
+        let scene, camera, renderer, turbineGroup, bladeGroup, hubMesh;
+        let particleSystem, particlePositions, particleVelocities, particleCount = 400;
+        let currentMode = 'smooth'; // 'smooth', 'serrated', 'tubercle', 'maple'
+        let windSpeed = 12.0;
+        let pitchAngle = 6.0;
+        let showStreamlines = true;
+        let showHeatmap = false;
+
+        // Mouse Drag Controls
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        // --- INIT THREE.JS SCENE ---
+        function initScene() {
+            const container = document.getElementById('three-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.025);
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+            camera.position.set(0, 1.5, 7.5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x4ade80, 1.3);
+            dirLight.position.set(5, 10, 8);
+            scene.add(dirLight);
+
+            const cyanLight = new THREE.PointLight(0x06b6d4, 1.2, 10);
+            cyanLight.position.set(-4, -2, 4);
+            scene.add(cyanLight);
+
+            // Base Group
+            turbineGroup = new THREE.Group();
+
+            // Tower
+            const towerGeo = new THREE.CylinderGeometry(0.12, 0.22, 5.5, 20);
+            const towerMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.7 });
+            const tower = new THREE.Mesh(towerGeo, towerMat);
+            tower.position.y = -2.75;
+            turbineGroup.add(tower);
+
+            // Nacelle
+            const nacelleGeo = new THREE.BoxGeometry(0.55, 0.55, 1.1);
+            const nacelleMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.3, metalness: 0.5 });
+            const nacelle = new THREE.Mesh(nacelleGeo, nacelleMat);
+            nacelle.position.set(0, 0, 0);
+            turbineGroup.add(nacelle);
+
+            // Hub Cone
+            const hubGeo = new THREE.ConeGeometry(0.32, 0.5, 20);
+            hubGeo.rotateX(Math.PI / 2);
+            const hubMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.2 });
+            hubMesh = new THREE.Mesh(hubGeo, hubMat);
+            hubMesh.position.set(0, 0, 0.6);
+            turbineGroup.add(hubMesh);
+
+            // Blade Group Attached to Hub
+            bladeGroup = new THREE.Group();
+            bladeGroup.position.set(0, 0, 0.6);
+            turbineGroup.add(bladeGroup);
+
+            buildBlades();
+            scene.add(turbineGroup);
+
+            // Particle Streamlines
+            createStreamlines();
+
+            // Drag Controls
+            container.addEventListener('mousedown', (e) => { isDragging = true; previousMousePosition = { x: e.clientX, y: e.clientY }; });
+            container.addEventListener('mouseup', () => isDragging = false);
+            container.addEventListener('mouseleave', () => isDragging = false);
+            container.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    const deltaY = e.clientY - previousMousePosition.y;
+                    turbineGroup.rotation.y += deltaX * 0.008;
+                    turbineGroup.rotation.x += deltaY * 0.008;
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
+            });
+
+            // Touch Drag Support
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+            container.addEventListener('touchend', () => isDragging = false);
+            container.addEventListener('touchmove', (e) => {
+                if (isDragging && e.touches.length === 1) {
+                    const deltaX = e.touches[0].clientX - previousMousePosition.x;
+                    const deltaY = e.touches[0].clientY - previousMousePosition.y;
+                    turbineGroup.rotation.y += deltaX * 0.008;
+                    turbineGroup.rotation.x += deltaY * 0.008;
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+
+            // Window Resize
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+
+            // Start Animation Loop
+            animate();
+        }
+
+        // --- BLADE MESH GENERATION ---
+        function createBladeGeometry(mode) {
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0);
+
+            if (mode === 'maple') {
+                // Asymmetric Single-winged Maple Seed Rotor
+                shape.quadraticCurveTo(0.35, 0.6, 0.45, 1.4);
+                shape.quadraticCurveTo(0.3, 2.2, 0.05, 2.6);
+                shape.quadraticCurveTo(-0.15, 1.8, -0.05, 0.5);
+            } else if (mode === 'tubercle') {
+                // Leading edge bumps (Tubercles)
+                let y = 0.2;
+                shape.lineTo(0.1, y);
+                for (let i = 0; i < 7; i++) {
+                    y += 0.15;
+                    shape.lineTo(0.22, y);
+                    y += 0.15;
+                    shape.lineTo(0.11, y);
+                }
+                shape.lineTo(0.02, 2.5);
+                shape.lineTo(-0.08, 0.3);
+            } else {
+                shape.lineTo(0.14, 0.3);
+                shape.lineTo(0.16, 2.2);
+                shape.lineTo(0.02, 2.5);
+
+                if (mode === 'serrated') {
+                    // Trailing Edge Owl Feather Comb Serrations
+                    for (let y = 2.4; y >= 0.4; y -= 0.14) {
+                        shape.lineTo(-0.14, y);
+                        shape.lineTo(-0.02, y - 0.07);
+                    }
+                } else {
+                    // Standard Smooth Trailing Edge
+                    shape.lineTo(-0.06, 0.3);
+                }
+            }
+
+            shape.closePath();
+
+            const extrudeSettings = { depth: 0.025, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.008, bevelThickness: 0.008 };
+            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+
+            // Determine Material Color based on Heatmap & Mode
+            let matColor = 0xe2e8f0;
+            if (showHeatmap) {
+                matColor = 0xf43f5e; // High Pressure Heatmap Color
+            } else {
+                if (mode === 'serrated') matColor = 0x4ade80;
+                if (mode === 'tubercle') matColor = 0x22d3ee;
+                if (mode === 'maple') matColor = 0xf59e0b;
+            }
+
+            const material = new THREE.MeshStandardMaterial({
+                color: matColor,
+                roughness: showHeatmap ? 0.2 : 0.35,
+                metalness: 0.25,
+                wireframe: false
+            });
+
+            return new THREE.Mesh(geometry, material);
+        }
+
+        function buildBlades() {
+            // Clear existing
+            while (bladeGroup.children.length > 0) {
+                bladeGroup.remove(bladeGroup.children[0]);
+            }
+
+            const bladeCount = (currentMode === 'maple') ? 1 : 3;
+
+            for (let i = 0; i < bladeCount; i++) {
+                const blade = createBladeGeometry(currentMode);
+                blade.rotation.z = (i * Math.PI * 2) / bladeCount;
+                blade.rotation.y = THREE.MathUtils.degToRad(pitchAngle); // Pitch adjustment
+                bladeGroup.add(blade);
+            }
+
+            // Adjust hub color
+            if (currentMode === 'serrated') hubMesh.material.color.setHex(0x16a34a);
+            else if (currentMode === 'tubercle') hubMesh.material.color.setHex(0x0891b2);
+            else if (currentMode === 'maple') hubMesh.material.color.setHex(0xd97706);
+            else hubMesh.material.color.setHex(0x22c55e);
+        }
+
+        // --- STREAMLINE VORTEX PARTICLE SYSTEM ---
+        function createStreamlines() {
+            const particleGeo = new THREE.BufferGeometry();
+            particlePositions = new Float32Array(particleCount * 3);
+            particleVelocities = new Float32Array(particleCount);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                particlePositions[i] = (Math.random() - 0.5) * 5;     // X
+                particlePositions[i + 1] = (Math.random() - 0.5) * 5; // Y
+                particlePositions[i + 2] = Math.random() * 8 - 5;     // Z
+                particleVelocities[i / 3] = Math.random() * 0.05 + 0.02;
+            }
+
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.05,
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.65
+            });
+
+            particleSystem = new THREE.Points(particleGeo, particleMat);
+            scene.add(particleSystem);
+        }
+
+        function updateStreamlineParticles() {
+            if (!particleSystem) return;
+            particleSystem.visible = showStreamlines;
+
+            if (!showStreamlines) return;
+
+            const positions = particleSystem.geometry.attributes.position.array;
+            const speedFactor = windSpeed * 0.006;
+
+            for (let i = 0; i < particleCount; i++) {
+                const idx = i * 3;
+                positions[idx + 2] += speedFactor + particleVelocities[i]; // Move along Z axis
+
+                // If near turbine plane, deflect for vortex visualization
+                if (Math.abs(positions[idx + 2]) < 0.5) {
+                    if (currentMode === 'tubercle') {
+                        positions[idx] += Math.sin(positions[idx + 2] * 10) * 0.01; // Controlled channeling
+                    } else if (currentMode === 'smooth' && pitchAngle > 14) {
+                        positions[idx] += (Math.random() - 0.5) * 0.08; // High turbulent wake stall
+                    }
+                }
+
+                // Reset loop
+                if (positions[idx + 2] > 4) {
+                    positions[idx + 2] = -4;
+                    positions[idx] = (Math.random() - 0.5) * 5;
+                    positions[idx + 1] = (Math.random() - 0.5) * 5;
+                }
+            }
+
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // --- ANIMATION RENDER LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate Blades based on wind speed and mode
+            let rpmMult = 0.0025;
+            if (currentMode === 'maple') rpmMult = 0.005; // Autorotation rotates faster
+            if (currentMode === 'tubercle' && pitchAngle > 15) rpmMult *= 1.2; // Tubercle maintains speed during stall pitch
+
+            if (bladeGroup) {
+                bladeGroup.rotation.z -= windSpeed * rpmMult;
+            }
+
+            updateStreamlineParticles();
+            renderer.render(scene, camera);
+        }
+
+        // --- INTERACTION LOGIC & TELEMETRY CALCULATIONS ---
+        function switchBladeMode(mode) {
+            currentMode = mode;
+
+            document.querySelectorAll('.blade-mode-btn').forEach(btn => {
+                btn.classList.remove('border-brand-500', 'bg-brand-500/10', 'text-white');
+                btn.classList.add('border-slate-800', 'bg-slate-900/60', 'text-slate-300');
+            });
+
+            const activeBtn = document.getElementById(`btn-mode-${mode}`);
+            activeBtn.classList.remove('border-slate-800', 'bg-slate-900/60', 'text-slate-300');
+            activeBtn.classList.add('border-brand-500', 'bg-brand-500/10', 'text-white');
+
+            const badge = document.getElementById('badge-blade-mode');
+            if (mode === 'smooth') badge.innerText = "Standard Smooth Blade";
+            if (mode === 'serrated') badge.innerText = "Owl Feather Serrated Trailing Edge";
+            if (mode === 'tubercle') badge.innerText = "Whale Leading-Edge Tubercles";
+            if (mode === 'maple') badge.innerText = "Maple Seed Autorotation Rotor";
+
+            buildBlades();
+            recalculateTelemetry();
+        }
+
+        function updateSimParameters() {
+            windSpeed = parseFloat(document.getElementById('slider-wind').value);
+            pitchAngle = parseFloat(document.getElementById('slider-pitch').value);
+            showStreamlines = document.getElementById('toggle-streamlines').checked;
+            showHeatmap = document.getElementById('toggle-heatmap').checked;
+
+            document.getElementById('slider-wind-val').innerText = `${windSpeed.toFixed(1)} m/s`;
+            document.getElementById('slider-pitch-val').innerText = `${pitchAngle.toFixed(1)}°`;
+            document.getElementById('pitch-angle-display').innerText = `${pitchAngle.toFixed(1)}°`;
+
+            document.getElementById('badge-flow-mode').style.display = showStreamlines ? 'inline-block' : 'none';
+            document.getElementById('badge-heatmap-mode').style.display = showHeatmap ? 'inline-block' : 'none';
+
+            // Rebuild blade pitch orientation & heatmap materials
+            buildBlades();
+            recalculateTelemetry();
+        }
+
+        function recalculateTelemetry() {
+            // 1. Acoustic Noise Level Calculation (dB)
+            let baseNoise = 45 + (windSpeed * 1.8) + (pitchAngle * 0.4);
+            let noiseReduction = 0;
+
+            if (currentMode === 'serrated') {
+                noiseReduction = 8.8; // High acoustic damping from owl serrations
+            } else if (currentMode === 'tubercle') {
+                noiseReduction = 3.1;
+            }
+
+            const finalDb = Math.max(30, baseNoise - noiseReduction).toFixed(1);
+            document.getElementById('metric-db').innerText = `${finalDb} dB`;
+            document.getElementById('meter-db-bar').style.width = `${Math.min(100, (finalDb / 95) * 100)}%`;
+
+            const dbStatus = document.getElementById('metric-db-status');
+            if (currentMode === 'serrated') {
+                dbStatus.innerText = "Noise Reduced (-8.8 dB Quiet Flight)";
+                dbStatus.className = "text-[11px] text-emerald-400 mt-2 block font-medium";
+            } else {
+                dbStatus.innerText = "Standard Turbulence Acoustic Noise";
+                dbStatus.className = "text-[11px] text-slate-400 mt-2 block font-medium";
+            }
+
+            // 2. Lift-to-Drag Ratio (Cl/Cd) & Stall Physics
+            let baseLD = 45 - Math.abs(pitchAngle - 6) * 2.2;
+            if (pitchAngle > 14 && currentMode !== 'tubercle') {
+                baseLD *= 0.35; // Abrupt stall for non-tubercle blades
+            } else if (pitchAngle > 14 && currentMode === 'tubercle') {
+                baseLD *= 0.85; // Tubercle maintains lift during high pitch angle
+            }
+            baseLD = Math.max(4.2, baseLD).toFixed(1);
+            document.getElementById('metric-ld').innerText = baseLD;
+            document.getElementById('meter-ld-bar').style.width = `${Math.min(100, (baseLD / 50) * 100)}%`;
+
+            const ldStatus = document.getElementById('metric-ld-status');
+            if (pitchAngle > 14 && currentMode === 'tubercle') {
+                ldStatus.innerText = "Stall Delayed via Tubercle Vortices";
+                ldStatus.className = "text-[11px] text-cyan-400 mt-2 block font-medium";
+            } else if (pitchAngle > 14) {
+                ldStatus.innerText = "WARNING: Aerodynamic Boundary Stall";
+                ldStatus.className = "text-[11px] text-rose-400 mt-2 block font-medium";
+            } else {
+                ldStatus.innerText = "Optimal Laminar Flow Boundary";
+                ldStatus.className = "text-[11px] text-slate-400 mt-2 block font-medium";
+            }
+
+            // 3. Efficiency & RPM/Power
+            let efficiency = Math.min(94.5, (baseLD / 48) * 90);
+            document.getElementById('metric-eff').innerText = `${efficiency.toFixed(1)}%`;
+            document.getElementById('meter-eff-bar').style.width = `${efficiency.toFixed(0)}%`;
+
+            const rpm = (windSpeed * 1.9 * (currentMode === 'maple' ? 1.4 : 1.0)).toFixed(1);
+            const powerKw = Math.round((efficiency / 100) * Math.pow(windSpeed, 3) * 0.85);
+
+            document.getElementById('metric-rpm').innerText = `${rpm} RPM`;
+            document.getElementById('metric-power').innerText = `${powerKw.toLocaleString()} kW`;
+        }
+
+        function toggleInfoDrawer() {
+            const drawer = document.getElementById('info-drawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        // --- ONLOAD ---
+        window.onload = function () {
+            initScene();
+            recalculateTelemetry();
+        };
+    </script>
+</body>
+</html>
